@@ -128,13 +128,13 @@ export function InstagramVideoForm() {
     try {
       const videoInfo = await getVideoInfo({ postUrl });
       const { filename, videoUrl } = videoInfo;
-      
+  
       if (isAndroid()) {
         setDownloadStatus("Saving to Downloads folder...");
         await downloadToAndroid(videoUrl, filename);
         // Status will be updated by the Android WebView callback
       } else {
-        await downloadFile(videoUrl, filename);
+      await downloadFile(videoUrl, filename);
         setDownloadStatus("Download complete!");
       }
     } catch (error: any) {
