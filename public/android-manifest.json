@@ -1,0 +1,28 @@
+{
+  "name": "Instagram Video Downloader",
+  "short_name": "InstaDownloader",
+  "description": "Download Instagram videos easily",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4285f4",
+  "orientation": "portrait",
+  "permissions": [
+    "WRITE_EXTERNAL_STORAGE",
+    "READ_EXTERNAL_STORAGE",
+    "INTERNET",
+    "ACCESS_NETWORK_STATE"
+  ],
+  "android": {
+    "package": "com.gingkahagane.instadownloader",
+    "versionCode": 1,
+    "versionName": "1.0.0",
+    "installLocation": "auto",
+    "usesPermission": [
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.INTERNET",
+      "android.permission.ACCESS_NETWORK_STATE"
+    ]
+  }
+} 

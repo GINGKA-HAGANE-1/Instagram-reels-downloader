@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -30,6 +30,7 @@ const formSchema = z.object({
 });
 
 export function InstagramVideoForm() {
+  const [downloadStatus, setDownloadStatus] = useState<string>("");
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -43,6 +44,7 @@ export function InstagramVideoForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { postUrl } = values;
+    setDownloadStatus("Starting download...");
     try {
       console.log("getting video info", postUrl);
       const videoInfo = await getVideoInfo({ postUrl });
@@ -53,7 +55,8 @@ export function InstagramVideoForm() {
   
       await downloadFile(videoUrl, filename);
     } catch (error: any) {
-      console.log(error);
+      console.error(error);
+      setDownloadStatus("Download failed. " + error.message);
     }
   }
   
@@ -98,37 +101,52 @@ export function InstagramVideoForm() {
             Download
           </Button>
         </div>
-        <p className="text-muted-foreground text-center text-xs">
-          If the download opens a new page, right click the video and then click{" "}
-          Save as video.
+        {downloadStatus && (
+          <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
+            {downloadStatus}
+          </p>
+        )}
+        <p className="text-muted-foreground text-center text-xs mt-4">
+          Videos will be saved to your Downloads folder. Check your notification panel for download progress.
         </p>
       </form>
     </Form>
   );
 }
 
-// Utility function for download
+// Updated download function for better Android compatibility
 export async function downloadFile(videoUrl: string, filename: string) {
   try {
     const response = await fetch(videoUrl);
-
     if (!response.ok) {
-      throw new Error("Failed to fetch the video for download.");
+      throw new Error("Failed to fetch the video.");
     }
 
     const blob = await response.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename; // Set the filename for the download
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Cleanup blob URL
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (error) {
-    console.error("Error during file download:", error);
+    
+    // Check if running in Android WebView
+    if (window.navigator.userAgent.includes("wv")) {
+      // Android WebView approach
+      const link = document.createElement('a');
+      link.href = videoUrl;
+      link.download = filename;
+      link.setAttribute('target', '_system'); // Opens in system browser
+      link.setAttribute('rel', 'noopener noreferrer');
+      link.click();
+    } else {
+      // Regular browser approach
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename;
+      a.setAttribute('target', '_blank');
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(blobUrl);
+    }
+  } catch (error: any) {
+    console.error("Download error:", error);
+    throw new Error("Failed to download video. Please try again.");
   }
 }
