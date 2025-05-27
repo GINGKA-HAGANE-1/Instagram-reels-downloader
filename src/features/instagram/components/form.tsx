@@ -92,6 +92,8 @@ declare global {
     Android?: {
       downloadFile: (url: string, filename: string) => void;
     };
+    onAndroidDownloadComplete?: () => void;
+    onAndroidDownloadError?: (error: string) => void;
   }
 }
 

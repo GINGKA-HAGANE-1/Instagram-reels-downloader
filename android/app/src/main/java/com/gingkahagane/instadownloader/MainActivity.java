@@ -12,6 +12,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -35,12 +36,26 @@ public class MainActivity extends AppCompatActivity {
         webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setAllowFileAccess(true);
+        webSettings.setAllowContentAccess(true);
+        webSettings.setAllowFileAccessFromFileURLs(true);
+        webSettings.setAllowUniversalAccessFromFileURLs(true);
+        webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        
+        // Enable better web features
+        webSettings.setDatabaseEnabled(true);
+        webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        webSettings.setLoadWithOverviewMode(true);
+        webSettings.setUseWideViewPort(true);
         
         // Add JavaScript interface
         webView.addJavascriptInterface(new WebAppInterface(), "Android");
         
+        // Set WebView clients
         webView.setWebViewClient(new WebViewClient());
-        webView.loadUrl("file:///android_asset/index.html"); // or your app URL
+        webView.setWebChromeClient(new WebChromeClient());
+        
+        // Load the app URL
+        webView.loadUrl("https://instagram-reels-downloader-gingka.vercel.app"); // Update with your deployed URL
     }
 
     private void checkAndRequestPermissions() {
@@ -58,6 +73,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public class WebAppInterface {
+        Context mContext;
+
+        WebAppInterface() {
+            mContext = MainActivity.this;
+        }
+
         @JavascriptInterface
         public void downloadFile(String url, String filename) {
             try {
@@ -68,6 +89,10 @@ public class MainActivity extends AppCompatActivity {
                 request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, filename);
                 request.allowScanningByMediaScanner();
                 request.setMimeType("video/mp4");
+
+                // Add headers to handle CORS
+                request.addRequestHeader("Accept", "*/*");
+                request.addRequestHeader("User-Agent", "Mozilla/5.0");
 
                 DownloadManager manager = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                 if (manager != null) {
