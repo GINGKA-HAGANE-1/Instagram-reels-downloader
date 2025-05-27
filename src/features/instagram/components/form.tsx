@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -38,43 +38,60 @@ const isAndroid = () => {
 // Function to handle direct Android download
 async function downloadToAndroid(videoUrl: string, filename: string) {
   try {
+    // Check if we're in Android WebView
+    if (window.Android) {
+      // Use Android's native download manager through WebView interface
+      window.Android.downloadFile(videoUrl, filename);
+      return true;
+    }
+
+    // Fallback for regular Android browser
     const response = await fetch(videoUrl);
     if (!response.ok) throw new Error("Failed to fetch video");
     
     const blob = await response.blob();
-
-    // Try to use the Native File System API if available
-    if ('showSaveFilePicker' in window) {
-      try {
-        const handle = await (window as any).showSaveFilePicker({
-          suggestedName: filename,
-          types: [{
-            description: 'Video File',
-            accept: { 'video/mp4': ['.mp4'] },
-          }],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return true;
-      } catch (e) {
-        console.log("Native File System API failed, falling back to alternative method");
-      }
-    }
-
-    // Fallback method using content-disposition
     const blobUrl = URL.createObjectURL(blob);
+
+    // Create an invisible iframe for download
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    document.body.appendChild(iframe);
+
+    // Create download link in iframe
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = filename;
-    a.setAttribute('data-downloadurl', ['video/mp4', filename, blobUrl].join(':'));
     a.setAttribute('target', '_system');
-    a.click();
-    URL.revokeObjectURL(blobUrl);
+    a.setAttribute('rel', 'noopener');
+    
+    // Add download attributes for Android
+    a.setAttribute('data-downloadurl', ['video/mp4', filename, blobUrl].join(':'));
+    
+    // Trigger download
+    if (iframe.contentWindow) {
+      iframe.contentWindow.document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+        document.body.removeChild(iframe);
+      }, 2000);
+    }
+
     return true;
   } catch (error) {
     console.error("Android download error:", error);
     throw new Error("Failed to save to Downloads. Please check app permissions.");
+  }
+}
+
+// Add interface for Android WebView bridge
+declare global {
+  interface Window {
+    Android?: {
+      downloadFile: (url: string, filename: string) => void;
+    };
   }
 }
 
@@ -91,6 +108,18 @@ export function InstagramVideoForm() {
 
   const httpError = getHttpErrorMessage(error);
 
+  // Listen for download status from Android WebView
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.onAndroidDownloadComplete = () => {
+        setDownloadStatus("Video saved to Downloads folder!");
+      };
+      window.onAndroidDownloadError = (error: string) => {
+        setDownloadStatus("Download failed: " + error);
+      };
+    }
+  }, []);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     const { postUrl } = values;
     setDownloadStatus("Starting download...");
@@ -101,7 +130,7 @@ export function InstagramVideoForm() {
       if (isAndroid()) {
         setDownloadStatus("Saving to Downloads folder...");
         await downloadToAndroid(videoUrl, filename);
-        setDownloadStatus("Video saved to Downloads folder!");
+        // Status will be updated by the Android WebView callback
       } else {
         await downloadFile(videoUrl, filename);
         setDownloadStatus("Download complete!");
