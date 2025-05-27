@@ -29,6 +29,55 @@ const formSchema = z.object({
   }),
 });
 
+// Function to detect Android environment
+const isAndroid = () => {
+  return typeof window !== "undefined" && 
+    (window.navigator.userAgent.includes("Android") || window.navigator.userAgent.includes("wv"));
+};
+
+// Function to handle direct Android download
+async function downloadToAndroid(videoUrl: string, filename: string) {
+  try {
+    const response = await fetch(videoUrl);
+    if (!response.ok) throw new Error("Failed to fetch video");
+    
+    const blob = await response.blob();
+
+    // Try to use the Native File System API if available
+    if ('showSaveFilePicker' in window) {
+      try {
+        const handle = await (window as any).showSaveFilePicker({
+          suggestedName: filename,
+          types: [{
+            description: 'Video File',
+            accept: { 'video/mp4': ['.mp4'] },
+          }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      } catch (e) {
+        console.log("Native File System API failed, falling back to alternative method");
+      }
+    }
+
+    // Fallback method using content-disposition
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    a.setAttribute('data-downloadurl', ['video/mp4', filename, blobUrl].join(':'));
+    a.setAttribute('target', '_system');
+    a.click();
+    URL.revokeObjectURL(blobUrl);
+    return true;
+  } catch (error) {
+    console.error("Android download error:", error);
+    throw new Error("Failed to save to Downloads. Please check app permissions.");
+  }
+}
+
 export function InstagramVideoForm() {
   const [downloadStatus, setDownloadStatus] = useState<string>("");
   const form = useForm<z.infer<typeof formSchema>>({
@@ -46,14 +95,17 @@ export function InstagramVideoForm() {
     const { postUrl } = values;
     setDownloadStatus("Starting download...");
     try {
-      console.log("getting video info", postUrl);
       const videoInfo = await getVideoInfo({ postUrl });
-  
       const { filename, videoUrl } = videoInfo;
-  
-      console.log("videoUrl:", videoUrl);
-  
-      await downloadFile(videoUrl, filename);
+      
+      if (isAndroid()) {
+        setDownloadStatus("Saving to Downloads folder...");
+        await downloadToAndroid(videoUrl, filename);
+        setDownloadStatus("Video saved to Downloads folder!");
+      } else {
+        await downloadFile(videoUrl, filename);
+        setDownloadStatus("Download complete!");
+      }
     } catch (error: any) {
       console.error(error);
       setDownloadStatus("Download failed. " + error.message);
@@ -107,14 +159,16 @@ export function InstagramVideoForm() {
           </p>
         )}
         <p className="text-muted-foreground text-center text-xs mt-4">
-          Videos will be saved to your Downloads folder. Check your notification panel for download progress.
+          {isAndroid() 
+            ? "Videos will be saved directly to your Downloads folder" 
+            : "Click the download button to save the video"}
         </p>
       </form>
     </Form>
   );
 }
 
-// Updated download function for better Android compatibility
+// Regular download function for non-Android platforms
 export async function downloadFile(videoUrl: string, filename: string) {
   try {
     const response = await fetch(videoUrl);
@@ -123,28 +177,14 @@ export async function downloadFile(videoUrl: string, filename: string) {
     }
 
     const blob = await response.blob();
-    
-    // Check if running in Android WebView
-    if (window.navigator.userAgent.includes("wv")) {
-      // Android WebView approach
-      const link = document.createElement('a');
-      link.href = videoUrl;
-      link.download = filename;
-      link.setAttribute('target', '_system'); // Opens in system browser
-      link.setAttribute('rel', 'noopener noreferrer');
-      link.click();
-    } else {
-      // Regular browser approach
-      const blobUrl = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = blobUrl;
-      a.download = filename;
-      a.setAttribute('target', '_blank');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(blobUrl);
-    }
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
   } catch (error: any) {
     console.error("Download error:", error);
     throw new Error("Failed to download video. Please try again.");

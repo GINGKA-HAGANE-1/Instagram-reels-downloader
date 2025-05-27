@@ -11,7 +11,9 @@
     "WRITE_EXTERNAL_STORAGE",
     "READ_EXTERNAL_STORAGE",
     "INTERNET",
-    "ACCESS_NETWORK_STATE"
+    "ACCESS_NETWORK_STATE",
+    "MANAGE_EXTERNAL_STORAGE",
+    "DOWNLOAD_WITHOUT_NOTIFICATION"
   ],
   "android": {
     "package": "com.gingkahagane.instadownloader",
@@ -22,7 +24,12 @@
       "android.permission.WRITE_EXTERNAL_STORAGE",
       "android.permission.READ_EXTERNAL_STORAGE",
       "android.permission.INTERNET",
-      "android.permission.ACCESS_NETWORK_STATE"
-    ]
+      "android.permission.ACCESS_NETWORK_STATE",
+      "android.permission.MANAGE_EXTERNAL_STORAGE",
+      "android.permission.DOWNLOAD_WITHOUT_NOTIFICATION"
+    ],
+    "queries": {
+      "mimeTypes": ["video/mp4"]
+    }
   }
 } 
